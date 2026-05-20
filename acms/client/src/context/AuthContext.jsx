@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../services/api';
 
 const AuthContext = createContext(null);
@@ -8,23 +8,24 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => localStorage.getItem('acms_token'));
   const [loading, setLoading] = useState(true);
 
-  const loadUser = useCallback(async () => {
-    if (!token) { setLoading(false); return; }
-    try {
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      const { data } = await api.get('/api/users/me');
-      setUser(data.user);
-    } catch {
-      localStorage.removeItem('acms_token');
-      setToken(null);
-      setUser(null);
-      delete api.defaults.headers.common['Authorization'];
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
-  useEffect(() => { loadUser(); }, [loadUser]);
+  // Load user profile once on mount (not on every token change)
+  useEffect(() => {
+    const savedToken = localStorage.getItem('acms_token');
+    if (!savedToken) { setLoading(false); return; }
+    api.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
+    api.get('/api/users/me')
+      .then(({ data }) => {
+        setUser(data.user);
+        setToken(savedToken);
+      })
+      .catch(() => {
+        localStorage.removeItem('acms_token');
+        setToken(null);
+        setUser(null);
+        delete api.defaults.headers.common['Authorization'];
+      })
+      .finally(() => setLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const login = async (email, password) => {
     const { data } = await api.post('/api/auth/login', { email, password });
