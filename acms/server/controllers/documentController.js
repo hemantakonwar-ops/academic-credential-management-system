@@ -1,5 +1,5 @@
 const Document = require('../models/Document');
-const { uploadToCloudinary, deleteFromCloudinary, getSignedUrl } = require('../services/cloudinaryService');
+const { uploadFile, deleteFile, getFileUrl } = require('../services/storageService');
 const { logAction } = require('../services/auditService');
 
 // GET /api/documents
@@ -53,7 +53,7 @@ exports.uploadDocument = async (req, res, next) => {
     const { title, category, institutionName, remarks } = req.body;
     const { buffer, mimetype, originalname, size } = req.file;
 
-    const cloudResult = await uploadToCloudinary(buffer, originalname, mimetype);
+    const result = await uploadFile(buffer, originalname, mimetype);
 
     const doc = await Document.create({
       userId: req.user._id,
@@ -61,8 +61,8 @@ exports.uploadDocument = async (req, res, next) => {
       category,
       institutionName,
       remarks,
-      fileUrl: cloudResult.secure_url,
-      filePublicId: cloudResult.public_id,
+      fileUrl: result.secure_url,
+      filePublicId: result.public_id,
       fileType: mimetype,
       fileSizeBytes: size,
       uploadDate: new Date(),
@@ -90,7 +90,7 @@ exports.getDocument = async (req, res, next) => {
     }
 
     const resourceType = doc.fileType === 'application/pdf' ? 'raw' : 'image';
-    const signedUrl = getSignedUrl(doc.filePublicId, resourceType);
+    const signedUrl = getFileUrl(doc.filePublicId, resourceType);
 
     res.json({ success: true, data: { ...doc.toObject(), signedUrl } });
   } catch (err) {
@@ -137,7 +137,7 @@ exports.deleteDocument = async (req, res, next) => {
     }
 
     const resourceType = doc.fileType === 'application/pdf' ? 'raw' : 'image';
-    await deleteFromCloudinary(doc.filePublicId, resourceType);
+    await deleteFile(doc.filePublicId, resourceType);
     await doc.deleteOne();
 
     await logAction({

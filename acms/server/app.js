@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 const errorHandler = require('./middleware/errorHandler');
+const path = require('path');
 
 // Route imports
 const authRoutes = require('./routes/auth');
@@ -58,6 +59,9 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'ACMS API', timestamp: new Date().toISOString() });
 });
+
+// ─── Static file serving (local uploads fallback) ──────────────────────────────
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ─── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);

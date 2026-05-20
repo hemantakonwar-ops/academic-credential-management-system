@@ -1,18 +1,40 @@
 const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: parseInt(process.env.EMAIL_PORT, 10),
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// ────────── Check if email is configured ──────────
+const isEmailConfigured = () => {
+  return (
+    process.env.EMAIL_HOST &&
+    process.env.EMAIL_USER &&
+    process.env.EMAIL_PASS &&
+    process.env.EMAIL_PASS !== 'your_sendgrid_api_key'
+  );
+};
+
+let transporter = null;
+
+if (isEmailConfigured()) {
+  transporter = nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: parseInt(process.env.EMAIL_PORT, 10) || 587,
+    secure: false,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+  console.log('📧 Email service: Configured (SendGrid/SMTP)');
+} else {
+  console.log('📧 Email service: Disabled (no SMTP credentials configured)');
+}
 
 const sendEmail = async ({ to, subject, html }) => {
+  if (!transporter) {
+    console.log(`📧 [SKIPPED] Email to ${to}: "${subject}" — no SMTP configured`);
+    return null;
+  }
+
   const mailOptions = {
-    from: `"ACMS" <${process.env.EMAIL_FROM}>`,
+    from: `"ACMS" <${process.env.EMAIL_FROM || 'noreply@acms.edu'}>`,
     to,
     subject,
     html,
@@ -29,7 +51,7 @@ const sendWelcomeEmail = async (user) => {
         <h1 style="color:#1D9E75">Welcome to ACMS! 🎓</h1>
         <p>Hi <strong>${user.fullName}</strong>,</p>
         <p>Your account has been created. You can now securely store and manage your academic credentials.</p>
-        <a href="${process.env.CLIENT_URL}/login" 
+        <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/login" 
            style="display:inline-block;background:#1D9E75;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;margin-top:16px;">
           Log In to ACMS
         </a>
@@ -42,7 +64,7 @@ const sendWelcomeEmail = async (user) => {
 };
 
 const sendPasswordResetEmail = async (user, resetToken) => {
-  const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
+  const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
   return sendEmail({
     to: user.email,
     subject: 'ACMS — Password Reset Request',

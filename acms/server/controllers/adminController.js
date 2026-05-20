@@ -2,7 +2,7 @@ const User = require('../models/User');
 const Document = require('../models/Document');
 const AuditLog = require('../models/AuditLog');
 const Category = require('../models/Category');
-const { deleteFromCloudinary } = require('../services/cloudinaryService');
+const { deleteFile } = require('../services/storageService');
 const { logAction } = require('../services/auditService');
 
 // GET /api/admin/stats
@@ -97,7 +97,7 @@ exports.deleteUser = async (req, res, next) => {
     // Delete all docs from cloud
     const docs = await Document.find({ userId: user._id });
     await Promise.allSettled(
-      docs.map((d) => deleteFromCloudinary(d.filePublicId, d.fileType === 'application/pdf' ? 'raw' : 'image'))
+      docs.map((d) => deleteFile(d.filePublicId, d.fileType === 'application/pdf' ? 'raw' : 'image'))
     );
 
     await Document.deleteMany({ userId: user._id });
